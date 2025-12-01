@@ -1,0 +1,15 @@
+.venv/
+.git/
+.env
+__pycache__/
+*.pyc
+temp-files/
+images/
+tests/
+demos/
+*.log
+img.png
+.github/
+LICENSE
+CHANGELOG.md
+SECURITY.md
