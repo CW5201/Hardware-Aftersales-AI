@@ -85,9 +85,17 @@ def normalize_sparse_vector(sparse_vec):
 
 
 def validate_embedding_dim(vector, expected_dim=1024):
-    """验证embedding向量维度"""
+    """修复embedding维度检查错误"""
     if not vector or len(vector) == 0:
         raise ValueError("Embedding向量不能为空")
     if len(vector) != expected_dim:
         raise ValueError(f"Embedding维度错误: 期望{expected_dim}, 实际{len(vector)}")
     return True
+
+
+def safe_generate_embeddings(texts):
+    """安全的embedding生成，带异常处理"""
+    try:
+        return generate_embeddings(texts)
+    except Exception as e:
+        raise RuntimeError(f"Embedding生成失败: {str(e)}")
