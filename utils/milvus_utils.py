@@ -28,6 +28,7 @@ def get_milvus_client_with_retry():
             if attempt == MILVUS_MAX_RETRIES - 1:
                 raise
             time.sleep(2 ** attempt)
+    return None
 
 
 def escape_milvus_string(value: str) -> str:
