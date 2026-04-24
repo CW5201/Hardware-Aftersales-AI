@@ -48,7 +48,7 @@ def get_minio_client():
 
 
 def sanitize_filename(filename):
-    """清理文件名中的特殊字符"""
+    """修复MinIO文件名特殊字符处理"""
     if not filename:
         return "unnamed_file"
     filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
