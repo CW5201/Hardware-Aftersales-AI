@@ -17,7 +17,7 @@ class SSEEvent:
 
 
 class SSEReconnectHandler:
-    """SSE断开重连处理器"""
+    """修复SSE流式响应断开重连"""
     def __init__(self, max_retries=3, retry_delay=1.0):
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -29,6 +29,7 @@ class SSEReconnectHandler:
     def wait_and_retry(self):
         self.retry_count += 1
         time.sleep(self.retry_delay * self.retry_count)
+        return self.retry_count < self.max_retries
 
 
 _sse_push_lock = threading.Lock()
