@@ -258,7 +258,7 @@ if __name__ == "__main__":
 
 
 def optimized_history_query(collection, session_id, limit=100):
-    """优化的历史记录查询，添加索引和分页"""
+    """修复MongoDB历史记录查询慢"""
     try:
         cursor = collection.find(
             {"session_id": session_id},
