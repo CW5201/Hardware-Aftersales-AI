@@ -17,7 +17,7 @@ MAX_CONTEXT_CHARS = 12000
 
 
 def safe_get_answer(state):
-    """安全获取答案，带空值检查"""
+    """修复查询结果空指针异常"""
     if state is None:
         return "抱歉，查询状态为空，请重试。"
     answer = state.get("answer")
