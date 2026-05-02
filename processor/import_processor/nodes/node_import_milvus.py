@@ -247,7 +247,7 @@ import threading
 _milvus_write_lock = threading.Lock()
 
 def safe_milvus_insert(client, collection_name, data):
-    """线程安全的Milvus插入操作"""
+    """修复并发导入Milvus写入冲突"""
     with _milvus_write_lock:
         try:
             client.insert(collection_name=collection_name, data=data)
