@@ -30,7 +30,7 @@ class NodeRerank(NodeBase):
     name: str = "node_rerank"
 
     def normalize_scores(self, scores):
-        """修复分数归一化，处理边界情况"""
+        """修复重排分数归一化错误"""
         if not scores:
             return []
         min_score = min(scores)
