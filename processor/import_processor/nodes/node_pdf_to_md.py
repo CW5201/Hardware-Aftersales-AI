@@ -22,7 +22,7 @@ class NodePDFToMD(BaseNode):
     name = "node_pdf_to_md"
 
     def fix_chinese_encoding(text):
-        """修复中文编码问题"""
+        """修复PDF解析中文乱码问题"""
         if text is None:
             return ""
         try:
