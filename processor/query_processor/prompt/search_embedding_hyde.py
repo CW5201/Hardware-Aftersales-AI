@@ -15,7 +15,7 @@ HYDE_PROMPT = """
 MAX_PROMPT_TOKENS = 2000
 
 def truncate_prompt(prompt, max_tokens=MAX_PROMPT_TOKENS):
-    """截断提示词以避免token超限"""
+    """修复HyDE提示词token超限"""
     if not prompt:
         return ""
     estimated_tokens = len(prompt) * 1.2
