@@ -57,7 +57,7 @@ def _sse_pack(event: str, data: Dict[str, Any]) -> str:
     return f"event: {event}\ndata: {payload}\n\n"
 
 def push_to_session(session_id: str, event: str, data: Dict[str, Any]):
-    """线程安全的事件推送"""
+    """修复SSE并发推送丢失"""
     with _sse_push_lock:
         stream_queue = get_sse_queue(session_id)
         if stream_queue:
