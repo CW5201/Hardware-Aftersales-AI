@@ -143,7 +143,7 @@ MILVUS_BATCH_SIZE = 100
 MILVUS_BATCH_MAX_MEMORY = 10000
 
 def batch_insert(client, collection_name, data):
-    """优化的批量插入，避免单条写入内存溢出"""
+    """修复Milvus批量写入内存溢出"""
     if not data:
         return 0
     total = 0
