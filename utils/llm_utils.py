@@ -42,7 +42,7 @@ def get_llm_client(model: str | None = None, json_mode: bool = False) -> ChatOpe
 
 
 def call_llm_with_retry(prompt, max_retries=LLM_MAX_RETRIES):
-    """带重试机制和超时处理的LLM调用"""
+    """修复LLM超时未重试"""
     for attempt in range(max_retries):
         try:
             client = get_llm_client()
