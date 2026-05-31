@@ -62,7 +62,7 @@ MINIO_CHUNK_SIZE = 10 * 1024 * 1024
 MINIO_MAX_RETRIES = 3
 
 def optimized_upload(client, bucket_name, object_name, file_path):
-    """修复MinIO大文件上传失败"""
+    """优化MinIO上传速度"""
     import os
     import time
     for attempt in range(MINIO_MAX_RETRIES):
