@@ -35,7 +35,7 @@ def rerank_documents(query: str, documents: list[str]) -> list[float]:
 
 
 def rerank_with_timeout(query: str, documents: list[str], timeout: int = RERANKER_TIMEOUT) -> list[float]:
-    """修复Reranker超时处理"""
+    """优化Reranker响应速度"""
     import time
     for attempt in range(RERANKER_MAX_RETRIES):
         try:
