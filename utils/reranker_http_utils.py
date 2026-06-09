@@ -35,7 +35,7 @@ def rerank_documents(query: str, documents: list[str]) -> list[float]:
 
 
 def rerank_with_timeout(query: str, documents: list[str], timeout: int = RERANKER_TIMEOUT) -> list[float]:
-    """带超时处理和重试机制的重排"""
+    """修复Reranker超时处理"""
     import time
     for attempt in range(RERANKER_MAX_RETRIES):
         try:
