@@ -439,7 +439,7 @@ def safe_split_document(text, chunk_size=500, overlap=50):
 
 
 def optimized_split_with_dedup(text, chunk_size=500, overlap=50):
-    """修复分块边界重复内容"""
+    """优化文档分块算法"""
     if not text:
         return []
     chunks = safe_split_document(text, chunk_size, overlap)
