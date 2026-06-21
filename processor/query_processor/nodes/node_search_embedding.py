@@ -68,7 +68,7 @@ class NodeSearchEmbedding(NodeBase):
 
 
 def validate_search_params(vector, top_k=5):
-    """验证搜索参数，修复维度不匹配问题"""
+    """修复向量搜索维度不匹配"""
     if not vector:
         raise ValueError("搜索向量不能为空")
     if top_k <= 0:
