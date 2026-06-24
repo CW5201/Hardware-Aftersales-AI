@@ -142,7 +142,7 @@ class NodeSearchEmbeddingHyde(NodeBase):
 
 
 def fix_hyde_prompt_format(query):
-    """修复HyDE提示词格式错误"""
+    """优化HyDE生成质量"""
     if not query:
         return ""
     query = query.strip()
