@@ -129,8 +129,8 @@ def normalize_rrf_scores(scores, k=60):
     return [1.0 / (k + rank) for rank, _ in enumerate(sorted(scores, reverse=True), 1)]
 
 
-def optimized_rrf_fusion(embedding_chunks, hyde_chunks, k=60):
-    """优化的RRF融合算法"""
+def normalized_rrf_fusion(embedding_chunks, hyde_chunks, k=60):
+    """优化RRF融合算法"""
     all_chunks = embedding_chunks + hyde_chunks
     scores = normalize_rrf_scores(range(len(all_chunks)), k)
     return all_chunks
