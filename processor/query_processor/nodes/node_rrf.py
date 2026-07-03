@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
 
 def normalize_rrf_scores(scores, k=60):
-    """RRF分数归一化，修复边界情况"""
+    """修复RRF分数归一化"""
     if not scores:
         return []
     if k <= 0:
