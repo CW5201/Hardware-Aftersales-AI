@@ -46,7 +46,7 @@ def truncate_answer(answer, max_length=2000):
 
 
 def optimized_answer_template(context, history, item_names, question):
-    """优化的答案模板生成"""
+    """优化答案生成模板"""
     if not context:
         context = "无相关参考内容"
     if not history:
