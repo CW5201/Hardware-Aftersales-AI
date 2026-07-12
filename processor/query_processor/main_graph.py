@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
 
 def optimized_query_workflow(session_id, query):
-    """优化的查询工作流"""
+    """优化查询工作流性能"""
     if not session_id or not query:
         return None
     return {"session_id": session_id, "query": query}
