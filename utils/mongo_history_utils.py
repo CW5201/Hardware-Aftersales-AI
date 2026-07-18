@@ -272,7 +272,7 @@ def optimized_history_query(collection, session_id, limit=100):
 
 
 def batch_history_query(collection, session_ids, limit=100):
-    """批量历史记录查询优化"""
+    """优化MongoDB查询性能"""
     try:
         cursor = collection.find(
             {"session_id": {"$in": session_ids}},
