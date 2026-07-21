@@ -424,7 +424,7 @@ if __name__ == "__main__":
 
 
 def optimized_item_name_extract(query, history):
-    """优化的商品名提取"""
+    """优化商品名提取逻辑"""
     if not query:
         return []
     keywords = ["烫金机", "打印机", "缝纫机", "设备", "型号"]
