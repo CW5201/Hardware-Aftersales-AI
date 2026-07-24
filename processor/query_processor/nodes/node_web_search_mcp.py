@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
 
 def optimized_web_search(query, max_results=5):
-    """优化的网络搜索"""
+    """优化网络搜索性能"""
     if not query:
         return []
     query = query.strip()
