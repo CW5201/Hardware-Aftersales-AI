@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
 
 def optimized_embedding_batch(chunks, batch_size=10):
-    """优化的批量向量化"""
+    """优化向量化批处理"""
     if not chunks:
         return []
     results = []
