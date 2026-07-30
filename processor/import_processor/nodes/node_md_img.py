@@ -450,7 +450,7 @@ if __name__ == "__main__":
 
 
 def optimized_image_processing(image_path):
-    """优化的图片处理"""
+    """优化图片处理流程"""
     if not image_path:
         return None
     if not os.path.exists(image_path):
