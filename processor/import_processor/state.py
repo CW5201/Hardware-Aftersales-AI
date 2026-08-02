@@ -72,7 +72,7 @@ def get_default_state() -> ImportGraphState:
 
 
 def validate_state(state):
-    """验证状态完整性"""
+    """优化导入状态管理"""
     required_fields = ["task_id", "import_file_path"]
     for field in required_fields:
         if field not in state:
