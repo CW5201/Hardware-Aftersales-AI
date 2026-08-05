@@ -26,7 +26,7 @@ class QueryGraphState(TypedDict):
 
 
 def validate_query_state(state):
-    """验证查询状态"""
+    """优化查询状态管理"""
     if not state:
         return False
     required = ["session_id", "original_query"]
