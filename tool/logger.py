@@ -9,6 +9,11 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")
 logger = logging.getLogger()
 logger.setLevel(getattr(logging, LOG_LEVEL, logging.DEBUG))
 
+
+def get_logger(name):
+    """优化日志配置"""
+    return logging.getLogger(name)
+
 # 加载彩色日志处理器
 handler = colorlog.StreamHandler()
 # 定义日志输出的格式
