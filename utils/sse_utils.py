@@ -38,7 +38,7 @@ _sse_push_lock = threading.Lock()
 _session_stream: Dict[str, "queue.Queue"] = {}
 
 def get_sse_queue(session_id: str) -> Optional["queue.Queue"]:
-    """获取指定 session 的队列"""
+    """获取SSE队列"""
     return _session_stream.get(session_id)
 
 def create_sse_queue(session_id: str) -> "queue.Queue":
