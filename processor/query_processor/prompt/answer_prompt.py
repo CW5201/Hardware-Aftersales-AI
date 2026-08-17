@@ -33,7 +33,7 @@ ANSWER_PROMPT = """你是一个智能助手，请根据参考内容回答用户�
 
 
 def truncate_answer(answer, max_length=2000):
-    """修复答案生成截断问题"""
+    """优化答案生成截断处理"""
     if not answer:
         return ""
     if len(answer) <= max_length:
