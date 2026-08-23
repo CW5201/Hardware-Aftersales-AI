@@ -409,7 +409,7 @@ if __name__ == "__main__":
 
 
 def enhanced_item_name_match(text):
-    """修复产品名识别正则匹配遗漏"""
+    """优化产品名识别正则匹配"""
     import re
     patterns = [
         r'产品[名称型号]*[：:]\s*(.+?)(?:\n|$)',
