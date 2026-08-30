@@ -1,0 +1,5 @@
+# 评估结果
+results/
+
+# 测试数据（如果不想提交）
+dataset/*.jsonl

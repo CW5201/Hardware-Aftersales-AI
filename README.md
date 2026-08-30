@@ -226,6 +226,13 @@ Hardware-Aftersales-AI/
 │       ├── import.html    # 文档导入界面
 │       └── chat.html      # 对话界面
 │
+├── eval/                   # 检索质量评测
+│   ├── dataset/            # 测试数据集
+│   ├── results/            # 评测结果
+│   ├── run_eval.py         # 评测主入口
+│   ├── retriever.py        # 检索策略封装
+│   └── compute_chunk_metrics.py # 指标计算
+│
 └── tool/                   # 开发工具
     └── logger.py           # 日志配置
 ```
@@ -261,6 +268,60 @@ Hardware-Aftersales-AI/
 - **幂等写入**: 按file_title去重，重复导入不产生重复数据
 - **多源融合**: 向量+HyDE+网络三路检索，RRF融合+Rerank重排
 - **SSE流式**: 内存Queue + 异步生成器，实时推送进度和答案
+
+## 📊 检索质量评测
+
+项目内置完整的 RAG 检索质量评测框架，支持 4 种检索策略 × 4 个 Top-K 的消融实验。
+
+### 评测方案
+
+| 编号 | 方案 | 说明 |
+|------|------|------|
+| A | hybrid | Dense + Sparse 混合检索，无融合/重排 |
+| B | hybrid_rrf | 混合检索 + RRF 融合 |
+| C | hybrid_rrf_rerank | 混合检索 + RRF + Cross-Encoder 重排 + 断崖截断 |
+| D | hyde_hybrid_rrf_rerank | HyDE + 混合检索 + RRF + Rerank + 断崖截断 |
+
+### 评测结果（34 条 Chunk-level GT）
+
+| 方案 | Hit@5 | MRR | Recall@5 | 平均延迟 |
+|------|-------|-----|----------|----------|
+| A. hybrid | 94.1% | 0.875 | 83.7% | 549ms |
+| B. hybrid + RRF | 94.1% | 0.875 | 83.7% | 1071ms |
+| C. hybrid + RRF + Rerank | 94.1% | 0.843 | 82.0% | 2044ms |
+| D. HyDE + hybrid + RRF + Rerank | 94.1% | 0.843 | 82.0% | 4976ms |
+
+**结论**: 纯 hybrid（方案 A）最优，各项准确率最高且延迟最低。RRF/Rerank/HyDE 均无提升。
+
+### 运行评测
+
+```bash
+# 1. 跑检索评测（需 Milvus 运行中）
+python eval/run_eval.py
+
+# 2. 计算 chunk-level 指标
+python eval/compute_chunk_metrics.py
+```
+
+### 评测文件
+
+```
+eval/
+├── dataset/
+│   ├── rag_eval.jsonl               # 356 条原始问题集
+│   └── rag_eval_chunk_level.jsonl   # 34 条 Chunk-level GT
+├── results/
+│   ├── summary.csv                  # 16 组汇总指标
+│   ├── detailed_results.csv         # 逐题详细指标
+│   ├── retrieval_results.csv        # 544 条原始检索结果
+│   ├── report.md                    # 完整评测报告
+│   └── figures/                     # 5 张对比图
+├── run_eval.py                      # 主入口
+├── retriever.py                     # RetrieverEvaluator
+├── compute_chunk_metrics.py         # 指标计算
+├── build_chunk_gt.py                # 构建 chunk 级 GT
+└── report.py / metrics.py           # 辅助模块
+```
 
 ## 🤝 贡献
 

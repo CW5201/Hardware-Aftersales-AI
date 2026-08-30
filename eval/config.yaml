@@ -1,0 +1,67 @@
+# RAG Evaluation Configuration
+
+dataset_path: "eval/dataset/rag_eval.jsonl"
+output_dir: "eval/results"
+
+# Top-K values to test
+top_k_list:
+  - 2
+  - 3
+  - 5
+  - 10
+
+# Retrieval methods to evaluate
+# Each method is a key that maps to an implementation in eval/retriever.py
+retrieval_methods:
+  - hybrid:
+      description: "Dense + Sparse hybrid search (BGE-M3), no RRF/Rerank"
+      use_hyde: false
+      use_rrf: false
+      use_rerank: false
+  - hybrid_rrf:
+      description: "Dense + Sparse hybrid search + RRF fusion"
+      use_hyde: false
+      use_rrf: true
+      use_rerank: false
+  - hybrid_rrf_rerank:
+      description: "Dense + Sparse hybrid search + RRF + Cross-Encoder Rerank + Cliff Cutoff"
+      use_hyde: false
+      use_rrf: true
+      use_rerank: true
+  - hyde_hybrid_rrf_rerank:
+      description: "HyDE + Dense + Sparse hybrid search + RRF + Rerank + Cliff Cutoff"
+      use_hyde: true
+      use_rrf: true
+      use_rerank: true
+
+# Whether to run answer evaluation (requires LLM API)
+enable_answer_eval: false
+
+# Embedding config (matches project config)
+embedding:
+  model_path: "${BGE_M3_PATH}"
+  device: "${BGE_DEVICE:-cpu}"
+  use_fp16: false
+  batch_size: 10
+
+# Milvus config
+milvus:
+  url: "${MILVUS_URL}"
+  collection: "${CHUNKS_COLLECTION}"
+
+# LLM config for HyDE and Answer eval
+llm:
+  api_key: "${OPENAI_API_KEY}"
+  base_url: "${OPENAI_API_BASE}"
+  model: "${LLM_DEFAULT_MODEL:-glm-4-flash}"
+  temperature: 0.1
+
+# Reranker config
+reranker:
+  api_key: "${OPENAI_API_KEY}"
+  model: "${TEXT_RERANK_MODEL:-qwen3-rerank}"
+  # Cliff cutoff thresholds (from node_rerank.py)
+  gap_abs: 0.3
+  gap_ratio: 0.25
+  max_topk: 10
+  min_topk: 2
