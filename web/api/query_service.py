@@ -12,7 +12,7 @@ from starlette.responses import FileResponse, StreamingResponse
 
 from processor.query_processor.main_graph import KBQueryWorkflow
 from processor.query_processor.main_graph_v2 import KBQueryWorkflowV2
-from utils.mongo_history_utils import clear_history, get_recent_messages, get_all_sessions
+from utils.mongo_history_utils import clear_history, get_recent_messages, get_all_sessions, delete_message
 from utils.sse_utils import create_sse_queue, SSEEvent, push_to_session, sse_generator
 from utils.task_utils import update_task_status, TASK_STATUS_PROCESSING, get_task_result, TASK_STATUS_COMPLETED, \
     TASK_STATUS_FAILED, clear_task

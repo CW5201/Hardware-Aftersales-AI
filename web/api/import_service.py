@@ -200,5 +200,12 @@ async def get_task_progress(task_id: str):
     return task_status_info
 
 
+# 健康检查接口：与 query_service 的 /health 保持一致，
+# 供 CI / Docker Smoke Test 检查 import_service 是否启动可用
+@app.get("/health", summary="健康检查", description="检查 import_service 是否正常启动")
+async def health():
+    return {"ok": True}
+
+
 if __name__ == "__main__":
     uvicorn.run(app=app,host="127.0.0.1",port=8000)

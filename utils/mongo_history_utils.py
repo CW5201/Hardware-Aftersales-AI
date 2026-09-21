@@ -217,6 +217,33 @@ def get_all_sessions() -> List[Dict[str, Any]]:
         logging.error(f"Error getting all sessions: {e}")
         return []
 
+def delete_message(message_id: str) -> int:
+    """
+    删除单条会话消息记录。
+
+    与 save_chat_message / update_message_item_names 保持一致的数据模型约定：
+    上层全程把 message_id 当字符串传递（insert 后 str(inserted_id)），
+    落库时再转回原生 ObjectId。chat_message._id 为 MongoDB 默认 ObjectId。
+
+    :param message_id: 消息记录主键（字符串形式的 ObjectId）
+    :return: 实际删除的文档数量；记录不存在 / 主键非法 / 连接异常时返回 0
+    """
+    mongo_tool = get_history_mongo_tool()
+    try:
+        # 校验主键是否为合法 ObjectId，避免 delete_one 抛出 InvalidId
+        object_id = ObjectId(message_id)
+        # 按主键删除单条消息
+        result = mongo_tool.chat_message.delete_one({"_id": object_id})
+        # 记录删除成功日志，便于问题排查
+        logging.info(f"Deleted message {message_id} (deleted_count={result.deleted_count})")
+        # 返回实际删除数量：记录不存在时为 0（不视为错误）
+        return result.deleted_count
+    except Exception as e:
+        # 捕获主键非法 / 连接异常等，记录错误并返回 0，避免上层 500
+        logging.error(f"Error deleting message {message_id}: {e}")
+        return 0
+
+
 def clear_history(session_id: str) -> int:
     """
     清空指定会话的所有历史对话记录

@@ -49,7 +49,17 @@ jobs:
     - name: Test Docker Compose
       run: |
         docker-compose up -d
-        sleep 30
-        curl -f http://localhost:8000/health || exit 1
-        curl -f http://localhost:8001/health || exit 1
+        # 轮询等待两个服务 ready（BGE-M3 模型加载较慢，固定 sleep 可能不够）
+        for i in $(seq 1 24); do
+          if curl -sf http://localhost:8000/health >/dev/null 2>&1 && \
+             curl -sf http://localhost:8001/health >/dev/null 2>&1; then
+            break
+          fi
+          sleep 5
+        done
+        # 分别检查两个服务真实存在的 health endpoint：
+        #   8000 -> import_service /health
+        #   8001 -> query_service  /health
+        curl -sf http://localhost:8000/health || exit 1
+        curl -sf http://localhost:8001/health || exit 1
         docker-compose down
