@@ -3,11 +3,9 @@ web/api/v2_service.py
 
 v2 Agent API（独立命名空间 /api/v2，与 v1 路由完全隔离）。
 
-本阶段（Step 2）只暴露 Triage 一个端点：
-    POST /api/v2/agent/triage
-
-后续阶段在同一 Router 上追加：
-    /api/v2/agent/run、/threads/{id}/trace、/approvals/{id}/approve ...
+Step 4：
+    POST /api/v2/agent/triage   （Step 2 保留不变）
+    POST /api/v2/agent/run      （Step 4 新增：跑完整 Agent Graph）
 
 挂载方式（见 query_service.py）：
     from web.api.v2_service import v2_router
@@ -46,4 +44,44 @@ async def agent_triage(request: TriageRequest):
             intent="unknown",
             retrieval_strategy="hybrid_rrf_rerank",
             urgency="low",
+        )
+
+
+class AgentRunRequest(BaseModel):
+    query: str = Field(..., description="用户自然语言报修 / 提问")
+
+
+class AgentRunResponse(BaseModel):
+    """
+    返回 Agent 工作流的中间产物（本阶段只到 Triage + Retrieval）。
+    不包含 diagnosis / memory / ticket / approval。
+    """
+    triage: dict
+    retrieval: dict
+
+
+@v2_router.post("/agent/run", response_model=AgentRunResponse)
+async def agent_run(request: AgentRunRequest):
+    """
+    跑完整 v2 Agent Graph（当前：Triage → Retrieval → END）。
+    返回 triage 与 retrieval evidence，不返回最终答案。
+    """
+    logger.info(f"[v2] Agent run 请求: {request.query}")
+    try:
+        workflow = AgentWorkflow()
+        state = workflow.run(request.query)
+        triage: TriageResult = state.get("triage", TriageResult(intent="unknown"))
+        retrieval = state.get("retrieval") or {}
+        return AgentRunResponse(
+            triage=triage.model_dump(),
+            retrieval=retrieval,
+        )
+    except Exception as e:
+        logger.exception(f"[v2] Agent run 异常: {e}")
+        # 保守降级：返回 unknown + 空 evidence，不让接口 500
+        return AgentRunResponse(
+            triage=TriageResult(intent="unknown", retrieval_strategy="hybrid_rrf_rerank").model_dump(),
+            retrieval={"documents": [], "scores": [], "strategy": None,
+                       "metadata": {}, "latency": 0.0,
+                       "error": f"agent_run_failed: {type(e).__name__}: {e}"},
         )

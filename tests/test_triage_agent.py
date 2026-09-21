@@ -36,6 +36,14 @@ class FakeLLM:
         return _Resp()
 
 
+class _NoopService:
+    """最小 RetrievalService 桩：返回空证据，不触碰 C 扩展/Milvus。"""
+
+    def search(self, query, product_model=None, strategy="hybrid_rrf_rerank", top_k=5):
+        from core.retrieval.retrieval_service import RetrievalResult
+        return RetrievalResult(documents=[], strategy=strategy, latency=0.0, metadata={})
+
+
 def test_parse_valid_json():
     raw = (
         '{"intent": "fault_diagnosis", "product_model": "X200", '
@@ -91,11 +99,11 @@ def test_agent_workflow_returns_triage():
     from processor.agent_processor.main_graph import AgentWorkflow
     raw = '{"intent": "knowledge_question", "product_model": "HAK180", ' \
           '"retrieval_strategy": "hybrid_rrf"}'
-    wf = AgentWorkflow(llm=FakeLLM(raw))
+    # Step 4 后 wf.run() 会走 Triage→Retrieval；注入 fake service 避免真调 Milvus/C 扩展
+    wf = AgentWorkflow(llm=FakeLLM(raw), retrieval_service=_NoopService())
     state = wf.run("HAK180 怎么调温度")
     assert isinstance(state["triage"], TriageResult)
     assert state["triage"].intent == "knowledge_question"
-    # 契约：State 目前只有 user_query + triage 两个业务字段
     assert "user_query" in state
 
 

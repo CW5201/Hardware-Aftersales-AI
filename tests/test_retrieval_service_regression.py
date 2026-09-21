@@ -118,9 +118,11 @@ class TestRegressionAgainstEval:
         monkeypatch.setattr(RetrieverEvaluator, "_search_hybrid",
                             lambda self, q, top_k=10, item_names=None: fake(q, top_k))
         # rerank_documents 是 DashScope 真实调用 → monkeypatch 两边共用同一个 fake 打分器
-        import core.retrieval.retrieval_service as rs_mod
+        # 注意：core.retrieval 把 rerank_documents 改为调用时 lazy import，
+        # 因此 patch 其源模块 utils.reranker_http_utils，而非 rs_mod 顶层属性。
+        import utils.reranker_http_utils as rerank_mod
         fake_rerank = lambda q, docs: [0.95, 0.90, 0.85, 0.70, 0.55, 0.40, 0.30, 0.20, 0.10, 0.05][:len(docs)]
-        monkeypatch.setattr(rs_mod, "rerank_documents", fake_rerank)
+        monkeypatch.setattr(rerank_mod, "rerank_documents", fake_rerank)
         monkeypatch.setattr("eval.retriever.rerank_documents", fake_rerank)
         svc_chunk_ids, eval_chunk_ids, svc_result = self._run_both(svc, monkeypatch, "hybrid_rrf_rerank", top_k=5)
         assert svc_chunk_ids == eval_chunk_ids
@@ -132,11 +134,13 @@ class TestRegressionAgainstEval:
                             lambda self, text, product_model, limit: fake(text, limit))
         monkeypatch.setattr(RetrieverEvaluator, "_search_hybrid",
                             lambda self, q, top_k=10, item_names=None: fake(q, top_k))
-        import core.retrieval.retrieval_service as rs_mod
+        # rerank 同样 patch 源模块（retrieval_service 现在 lazy import rerank_documents）
+        import utils.reranker_http_utils as rerank_mod
         fake_rerank = lambda q, docs: [0.9, 0.85, 0.8, 0.6, 0.4, 0.3, 0.2, 0.1, 0.05, 0.0][:len(docs)]
-        monkeypatch.setattr(rs_mod, "rerank_documents", fake_rerank)
+        monkeypatch.setattr(rerank_mod, "rerank_documents", fake_rerank)
         monkeypatch.setattr("eval.retriever.rerank_documents", fake_rerank)
         # HyDE 文档生成：两边都返回同一份 fake 文档，保证拼接后检索输入一致
+        import core.retrieval.retrieval_service as rs_mod
         monkeypatch.setattr(rs_mod.RetrievalService, "_generate_hyde_doc", lambda self, q: "FAKE_HYDE_DOC")
         svc_chunk_ids, eval_chunk_ids, svc_result = self._run_both(svc, monkeypatch, "hyde_hybrid_rrf_rerank", top_k=5)
         assert svc_chunk_ids == eval_chunk_ids

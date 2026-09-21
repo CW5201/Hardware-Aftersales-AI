@@ -32,12 +32,19 @@ from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
 from config.milvus_config import milvus_config
-from processor.query_processor.nodes.node_rrf import NodeRrf
-from processor.query_processor.nodes.node_rerank import NodeRerank
 from tool.logger import logger
-from utils.embedding_utils import generate_embeddings
-from utils.milvus_utils import create_hybrid_search_requests, get_milvus_client, hybrid_search
-from utils.reranker_http_utils import rerank_documents
+
+# ---------------- 顶层只保留“纯 Python 配置”导入 ----------------
+# 说明：
+#   utils.embedding_utils 顶层会 `from pymilvus.model.hybrid import BGEM3EmbeddingFunction`
+#   （间接拉入 FlagEmbedding 的 C 扩展）。在 pytest 的 assertion-rewriting 环境下，
+#   若同一 C 扩展模块被二次 exec（例如 web.api.query_service 的 import 链再次触发
+#   embedding_utils），Python 3.14 会因“同一进程 C 扩展二次初始化”而 segfault。
+#   因此把会触发 C 扩展的底层工具全部改为“调用时 lazy import”，
+#   使本模块顶层 import 不触碰任何 C 扩展，保证 pytest 可安全二次 exec。
+#
+# 检索算法本身（NodeRrf / NodeRerank / rerank / milvus / embedding）均在下方
+# 各 primitive 方法内按需 import，行为与 v1 完全一致，只是延迟到真正调用时。
 
 # 与 eval/retriever.py、node_search_embedding*.py 保持一致的底层参数
 _HYBRID_RANKER_WEIGHTS = (0.8, 0.2)   # dense 权重更高（现有实现固定值）
@@ -108,6 +115,9 @@ class RetrievalService:
         # 默认走 v1 的 chunks 集合；client 默认复用全局 MilvusClient 单例
         self.collection_name = collection_name or milvus_config.chunks_collection
         self._client = client
+        # RRF / Rerank 节点（纯 Python 算法，无 C 扩展）在 __init__ 构造一次
+        from processor.query_processor.nodes.node_rrf import NodeRrf
+        from processor.query_processor.nodes.node_rerank import NodeRerank
         self._rrf_node = NodeRrf()
         self._rerank_node = NodeRerank()
 
@@ -200,6 +210,9 @@ class RetrievalService:
     # ------------------------------------------------------------------
     def _run_hybrid(self, text: str, product_model: Optional[str], limit: int) -> List[Dict[str, Any]]:
         """混合检索：向量化 → 构造双路请求 → Milvus hybrid_search。复用 utils 现有函数。"""
+        from utils.embedding_utils import generate_embeddings
+        from utils.milvus_utils import create_hybrid_search_requests, hybrid_search
+
         client = self._get_client()
         embeddings = generate_embeddings([text])
         dense_vector = embeddings.get("dense")[0]
@@ -248,6 +261,7 @@ class RetrievalService:
             return []
         contents = [d.get("content", "") for d in docs]
         try:
+            from utils.reranker_http_utils import rerank_documents
             scores = rerank_documents(query, contents)
         except Exception as e:
             # 与现有 eval/retriever.py 行为一致：Rerank 失败时用 RRF 原分兜底
@@ -294,7 +308,10 @@ class RetrievalService:
         )
 
     def _get_client(self):
-        return self._client if self._client is not None else get_milvus_client()
+        if self._client is not None:
+            return self._client
+        from utils.milvus_utils import get_milvus_client
+        return get_milvus_client()
 
 
 if __name__ == "__main__":

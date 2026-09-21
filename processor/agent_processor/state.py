@@ -69,11 +69,16 @@ class TriageResult(BaseModel):
 
 class AgentState(TypedDict, total=False):
     """
-    LangGraph 状态（最小集）。
+    LangGraph 状态（当前最小集，Step 4）。
 
-    本阶段只包含 user_query 与 triage；后续阶段按需追加字段
-    （memory / tool_results / diagnosis / ticket / approval 等）。
+    字段：
+      - user_query: 原始用户输入
+      - triage:     TriageResult（Step 2 产出）
+      - retrieval:  结构化 Evidence（Step 4 产出），结构见 RetrievalNode
+
+    后续按需追加（memory / diagnosis / ticket / approval 等）。
     """
 
     user_query: str
     triage: TriageResult
+    retrieval: dict
