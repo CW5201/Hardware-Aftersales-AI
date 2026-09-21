@@ -12,6 +12,7 @@ from starlette.responses import FileResponse, StreamingResponse
 
 from processor.query_processor.main_graph import KBQueryWorkflow
 from processor.query_processor.main_graph_v2 import KBQueryWorkflowV2
+from web.api.v2_service import v2_router
 from utils.mongo_history_utils import clear_history, get_recent_messages, get_all_sessions, delete_message
 from utils.sse_utils import create_sse_queue, SSEEvent, push_to_session, sse_generator
 from utils.task_utils import update_task_status, TASK_STATUS_PROCESSING, get_task_result, TASK_STATUS_COMPLETED, \
@@ -264,6 +265,10 @@ async def health():
     检查服务是否正常
     """
     return {"ok": True}
+
+# v2 Agent API：独立 /api/v2 命名空间，与上面所有 v1 路由完全隔离。
+# 只新增，不修改任何 v1 路由。
+app.include_router(v2_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8001)
