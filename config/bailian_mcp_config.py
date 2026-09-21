@@ -16,5 +16,8 @@ class McpConfig:
 
 mcp_config = McpConfig(
     mcp_base_url=os.getenv("MCP_DASHSCOPE_BASE_URL"),
-    api_key=os.getenv("OPENAI_API_KEY")
+    # MCP WebSearch 走 DashScope，需要 DashScope 的 key。
+    # .env 里 MCP_API_KEY 是专用 key（sk- 开头），优先用它；
+    # 仅在未配置时才回退到 OPENAI_API_KEY（后者是智谱 key，喂给 DashScope 会 401）。
+    api_key=os.getenv("MCP_API_KEY") or os.getenv("OPENAI_API_KEY")
 )
