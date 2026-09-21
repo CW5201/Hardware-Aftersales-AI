@@ -2,6 +2,22 @@
 
 [中文](README.md) | [English](README_EN.md)
 
+## 版本状态
+
+**v1.0.0 — Graph-driven RAG Knowledge Base**
+
+当前为 v1 稳定基线（`v1.0.0` tag / `release/v1.0` 分支）。v2（Agentic After-sales Platform）路线图见 `docs/V2_ROADMAP.md`，v1 架构事实见 `docs/V1_ARCHITECTURE.md`。
+
+当前真实状态：
+
+- ✅ RAG 核心回归测试通过（`eval/cluster_test.py` 16/16，纯内存指标测试）
+- ✅ rc1 API 测试通过（`pytest tests/` 14 passed，含 `delete_message`、`/health`、SSE/task utils）
+- ⚠️ **真实 Docker / Milvus / MongoDB / MinIO / LLM 的端到端 E2E 尚未在当前开发环境执行**。检索链路的回归以纯内存 `cluster_test.py` + 隔离 `pytest` 为准；完整的真实基础设施 E2E（`eval/run_eval.py` 及 docker-compose 全链路）需要在具备 Milvus/MongoDB/MinIO/LLM 的环境补跑后才算完整验证。
+
+> 本项目基于 MIT 许可证开源
+
+---
+
 > **工业级、多路召回与重排融合的 Graph-driven RAG 智能知识库引擎**
 > 
 > 适用于 **AI应用工程师 / LLM应用开发 / RAG开发工程师** 学习与生产落地
