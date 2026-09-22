@@ -145,14 +145,34 @@ def test_diagnosis_retrieval_failed():
     assert d.diagnosis_result is None
 
 
-# ---------- Case 2: strategy 透传 ----------
+# ---------- Case 2: strategy 透传（Step 13 起 Adaptive Retrieval 会按意图覆盖） ----------
 
 def test_triage_strategy_passes_to_tool():
+    """
+    Step 13：Adaptive Retrieval 在 RetrievalNode 里按 triage 意图覆盖 strategy。
+    fault_diagnosis（复杂）→ 无论 triage 填什么，Adaptive 覆盖为 hybrid_rrf_rerank。
+    验证：service 收到的 strategy 落在 SUPPORTED_STRATEGIES 且符合 Adaptive 语义。
+    """
+    from core.retrieval.adaptive import SUPPORTED_STRATEGIES
+
     svc = _FakeService("ok")
     wf = AgentWorkflow(llm=_FakeLLM('{"intent":"fault_diagnosis","retrieval_strategy":"hybrid"}'),
                        retrieval_service=svc)
     wf.run("X200 报错")
-    # Tool/Service 收到的 strategy 应等于 Triage 产出
+    received = svc.calls[0]["strategy"]
+    assert received in SUPPORTED_STRATEGIES
+    # fault_diagnosis 是复杂问题 → Adaptive 覆盖为 hybrid_rrf_rerank（不再是 triage 的 hybrid）
+    assert received == "hybrid_rrf_rerank"
+
+
+def test_adaptive_simple_question_overrides_to_hybrid():
+    """简单知识问题 → Adaptive 覆盖为最简 hybrid。"""
+    svc = _FakeService("ok")
+    wf = AgentWorkflow(
+        llm=_FakeLLM('{"intent":"knowledge_question","retrieval_strategy":"hybrid_rrf_rerank"}'),
+        retrieval_service=svc,
+    )
+    wf.run("H3C 如何配置")
     assert svc.calls[0]["strategy"] == "hybrid"
 
 
@@ -239,6 +259,8 @@ def test_api_agent_run_returns_triage_and_retrieval():
     assert body["retrieval"]["error"] is None
     assert len(body["retrieval"]["documents"]) == 2
     assert body["diagnosis"]["diagnosis_status"] == "diagnosed"
+    # Step 13：Adaptive Retrieval 决策写在 retrieval.adaptive（复杂问题 → hybrid_rrf_rerank）
+    assert body["retrieval"]["adaptive"]["strategy"] == "hybrid_rrf_rerank"
 
 
 if __name__ == "__main__":

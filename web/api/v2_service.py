@@ -30,7 +30,7 @@ from services.business.business_service import BusinessService, BusinessServiceE
 from services.business.ticket_workflow import TicketWorkflow, TicketWorkflowError
 from services.business.approval_service import ApprovalService, ApprovalError
 from services.trace.trace_store import get_trace_store
-from services.trace.trace_store import get_trace_store
+from core.retrieval.adaptive import SUPPORTED_STRATEGIES
 
 v2_router = APIRouter(prefix="/api/v2", tags=["v2-agent"])
 
@@ -150,6 +150,46 @@ async def get_run_trace(run_id: str):
     if run is None:
         raise HTTPException(status_code=404, detail=f"run not found: {run_id}")
     return RunTraceResponse(found=True, run=run.to_dict())
+
+
+# ================= Step 13: Devices + Eval API（工作台降级数据源） =================
+
+class DevicesResponse(BaseModel):
+    devices: list
+    count: int
+
+
+@v2_router.get("/devices", response_model=DevicesResponse)
+async def list_devices(customer_id: str = ""):
+    """设备台账（本地模拟 BusinessService seed 数据；按 customer 隔离）。"""
+    wf_svc = _ticket_workflow()._svc
+    devices = [d.model_dump() for d in wf_svc.store.devices]
+    if customer_id:
+        devices = [d for d in devices if d["customer_id"] == customer_id]
+    return DevicesResponse(devices=devices, count=len(devices))
+
+
+class AgentEvalResponse(BaseModel):
+    agent_metrics: dict
+    failure_dataset: dict
+    note: str
+
+
+@v2_router.get("/eval/agent", response_model=AgentEvalResponse)
+async def agent_eval(thread_id: str = ""):
+    """
+    Agent 级评测（Step 11 指标 + failure dataset）。
+    本地模拟环境无 ground truth 标注 → 各指标 "Not evaluated"（不编数字）。
+    """
+    from services.evaluation_service import EvalService
+
+    svc = EvalService()
+    rep = svc.report(thread_id=thread_id or None)
+    return AgentEvalResponse(
+        agent_metrics=rep.get("agent_metrics", {}),
+        failure_dataset=rep.get("failure_dataset", {}),
+        note=rep.get("note", ""),
+    )
 
 
 # ================= Step 8: Ticket Workflow API =================

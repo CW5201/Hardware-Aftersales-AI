@@ -22,7 +22,7 @@ Retrieval Node：把 Triage 的产物接给 RAG Tool，把 Evidence 写回 State
 
 from tool.logger import logger
 
-from core.retrieval.retrieval_service import SUPPORTED_STRATEGIES
+from core.retrieval.adaptive import pick_retrieval_strategy, SUPPORTED_STRATEGIES
 from processor.agent_processor.state import AgentState
 from processor.agent_processor.tools.search_knowledge_base import (
     build_tool_args_from_triage,
@@ -62,6 +62,18 @@ class RetrievalNode:
             retrieval_strategy=triage.retrieval_strategy,
         )
 
+        # 1b) Adaptive Retrieval（Step 13）：根据 triage 复杂度 / 已有证据质量
+        #     覆盖 triage 推荐的 strategy。首轮（retrieval 尚未跑过）时，
+        #     简单问题 → hybrid（而非 triage 默认的 hybrid_rrf_rerank），
+        #     复杂问题 → hybrid_rrf_rerank，知识不足/低置信 → HyDE + web 搜索建议。
+        decision = pick_retrieval_strategy(triage, retrieval=None)
+        if decision.strategy != tool_args.get("retrieval_strategy"):
+            logger.info(
+                f"RetrievalNode(Adaptive): strategy 覆盖 {tool_args.get('retrieval_strategy')} → "
+                f"{decision.strategy}（{decision.reason}）"
+            )
+            tool_args["retrieval_strategy"] = decision.strategy
+
         # 2) 边界校验：strategy 必须落在 SUPPORTED_STRATEGIES
         strategy = tool_args.get("retrieval_strategy")
         if strategy not in SUPPORTED_STRATEGIES:
@@ -100,6 +112,8 @@ class RetrievalNode:
             "metadata": raw.get("metadata") or {},
             "latency": raw.get("latency", 0.0),
             "error": raw.get("error"),
+            # Adaptive Retrieval（Step 13）：本轮决策 + 是否建议 web 搜索兜底
+            "adaptive": decision.to_dict(),
         }
         # 5) 区分"正常无结果"与"检索故障"（仅用于日志与上层判断，不静默吞掉）
         if evidence["error"]:

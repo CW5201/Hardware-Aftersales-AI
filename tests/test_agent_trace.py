@@ -209,13 +209,13 @@ def test_traced_run_error_path():
 
 def test_api_thread_trace():
     from fastapi.testclient import TestClient
+    import web.api.v2_service as v2svc
     wf, store, _ = _wf()
     state = wf.run("X200 ERR-203", thread_id="api-1", customer_id="CUST-0001")
     run_id = state["trace_run_id"]
 
-    # 注入 trace store 到 API 用的全局单例
-    import services.trace.trace_store as ts_module
-    with mock.patch.object(ts_module, "get_trace_store", return_value=store):
+    # mock 两个绑定：模块级 get_trace_store + 已绑定的函数名
+    with mock.patch.object(v2svc, "get_trace_store", return_value=store):
         from web.api.query_service import app
         client = TestClient(app, raise_server_exceptions=False)
         r = client.get("/api/v2/threads/api-1/trace")
