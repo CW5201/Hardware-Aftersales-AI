@@ -204,27 +204,37 @@ def test_retrieval_failure_propagates_as_error():
     assert ev["documents"] == []
 
 
-# ---------- Case 7: API 返回 triage + retrieval ----------
+# ---------- Case 7: API 返回 triage + retrieval + diagnosis ----------
 
 def test_api_agent_run_returns_triage_and_retrieval():
     from fastapi.testclient import TestClient
     import processor.agent_processor.main_graph as mg
+    from services.memory.memory_service import MemoryService, MemoryBackend
+    from services.business.business_service import BusinessService
 
     # 用一个固定的 fake service 替换全局检索服务，避免打真实 Milvus
     fake_service = _FakeService("ok")
-    with mock.patch.object(
-        mg, "AgentWorkflow", lambda: AgentWorkflow(llm=_FakeLLM(
-            '{"intent":"fault_diagnosis","product_model":"X200","error_code":"ERR-203",'
-            '"retrieval_strategy":"hybrid_rrf_rerank"}'
-        ), retrieval_service=fake_service),
-    ):
+    # 隔离的 memory（不污染全局单例）
+    iso_mem = MemoryService(backend=MemoryBackend(business_service=BusinessService(seed=False)))
+
+    def _mk_wf():
+        return AgentWorkflow(
+            llm=_FakeLLM(
+                '{"intent":"fault_diagnosis","product_model":"X200","error_code":"ERR-203",'
+                '"retrieval_strategy":"hybrid_rrf_rerank"}'
+            ),
+            retrieval_service=fake_service,
+            memory=iso_mem,
+        )
+
+    with mock.patch.object(mg, "AgentWorkflow", _mk_wf):
         from web.api.query_service import app
         client = TestClient(app, raise_server_exceptions=False)
         resp = client.post("/api/v2/agent/run", json={"query": "我的 X200 出现 ERR-203"})
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert "triage" in body and "retrieval" in body and "diagnosis" in body
+    assert "triage" in body and "retrieval" in body and "diagnosis" in body and "memory" in body
     assert body["triage"]["product_model"] == "X200"
     assert body["retrieval"]["error"] is None
     assert len(body["retrieval"]["documents"]) == 2

@@ -12,6 +12,8 @@ Step 5：
     app.include_router(v2_router)
 """
 
+from typing import Optional
+
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -49,36 +51,48 @@ async def agent_triage(request: TriageRequest):
 
 class AgentRunRequest(BaseModel):
     query: str = Field(..., description="用户自然语言报修 / 提问")
+    thread_id: str = Field(default="default", description="会话线程 ID（短期记忆锚点）")
+    customer_id: str = Field(default="", description="客户 ID（数据隔离 + 长期记忆）")
+    device_id: str = Field(default="", description="设备 ID（长期记忆 + 业务 Tool 作用域）")
 
 
 class AgentRunResponse(BaseModel):
     """
-    返回 Agent 工作流的中间产物（Step 5：Triage + Retrieval + Diagnosis）。
-    不包含 memory / ticket / approval（后续 Step 追加）。
+    返回 Agent 工作流的中间产物（Step 7：Triage + Memory + Retrieval + Diagnosis）。
+    不包含 ticket / approval（Step 8/9 追加）。
     """
     triage: dict
     retrieval: dict
     diagnosis: dict
+    memory: dict
+    thread_id: str
 
 
 @v2_router.post("/agent/run", response_model=AgentRunResponse)
 async def agent_run(request: AgentRunRequest):
     """
-    跑完整 v2 Agent Graph（当前：Triage → Retrieval → Diagnosis → END）。
-    返回 triage / retrieval evidence / diagnosis，不返回最终对客答案。
+    跑完整 v2 Agent Graph（当前：Triage → Memory → Retrieval → Diagnosis → Memory → END）。
+    返回 triage / memory / retrieval evidence / diagnosis，不返回最终对客答案。
     """
-    logger.info(f"[v2] Agent run 请求: {request.query}")
+    logger.info(f"[v2] Agent run 请求: {request.query} (thread={request.thread_id})")
     try:
         workflow = AgentWorkflow()
-        state = workflow.run(request.query)
+        state = workflow.run(
+            request.query,
+            thread_id=request.thread_id or "default",
+            customer_id=request.customer_id or None,
+            device_id=request.device_id or None,
+        )
         triage: TriageResult = state.get("triage", TriageResult(intent="unknown"))
         retrieval = state.get("retrieval") or {}
         diagnosis = state.get("diagnosis")
-        diagnosis_dict = diagnosis.model_dump() if diagnosis is not None else {}
+        memory = state.get("memory") or {}
         return AgentRunResponse(
             triage=triage.model_dump(),
             retrieval=retrieval,
-            diagnosis=diagnosis_dict,
+            diagnosis=diagnosis.model_dump() if diagnosis is not None else {},
+            memory=memory,
+            thread_id=state.get("thread_id") or request.thread_id or "default",
         )
     except Exception as e:
         logger.exception(f"[v2] Agent run 异常: {e}")
@@ -89,4 +103,6 @@ async def agent_run(request: AgentRunRequest):
                        "metadata": {}, "latency": 0.0,
                        "error": f"agent_run_failed: {type(e).__name__}: {e}"},
             diagnosis={},
+            memory={},
+            thread_id=request.thread_id or "default",
         )

@@ -139,8 +139,8 @@ class BusinessService:
     def create_service_ticket(
         self,
         customer_id: str,
-        device_id: Optional[str],
-        problem: str,
+        device_id: Optional[str] = None,
+        problem: str = "",
         diagnosis: Optional[str] = None,
         evidence: Optional[list] = None,
         priority: str = "low",

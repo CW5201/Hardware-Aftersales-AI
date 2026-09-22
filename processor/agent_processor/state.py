@@ -117,18 +117,26 @@ class TriageResult(BaseModel):
 
 class AgentState(TypedDict, total=False):
     """
-    LangGraph 状态（Step 5）。
+    LangGraph 状态（Step 7）。
 
     字段：
       - user_query:  原始用户输入
       - triage:      TriageResult（Step 2 产出）
       - retrieval:   结构化 Evidence（Step 4 产出）
       - diagnosis:   DiagnosisResult（Step 5 产出）
+      - memory:      Memory 上下文（Step 7 产出，结构见 MemoryRetrieveNode）
+      - thread_id:   会话线程 ID（短期记忆锚点）
+      - customer_id: 数据隔离锚点（长期记忆 + 业务 Tool 作用域）
+      - device_id:   设备 ID（长期记忆 + 业务 Tool 作用域）
 
-    后续按需追加（memory / ticket / approval 等）。
+    后续按需追加（ticket / approval / trace 等）。
     """
 
     user_query: str
     triage: TriageResult
     retrieval: dict
     diagnosis: DiagnosisResult
+    memory: dict
+    thread_id: str
+    customer_id: Optional[str]
+    device_id: Optional[str]
