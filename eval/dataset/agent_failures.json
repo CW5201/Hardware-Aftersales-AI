@@ -1,0 +1,88 @@
+[
+  {
+    "case_id": "fail-wrong-tool-001",
+    "failure_type": "wrong_tool",
+    "agent_tool_name": "get_repair_history",
+    "expected_tool_name": "create_service_ticket",
+    "expected_tool_args": {"customer_id": "CUST-0001"},
+    "note": "该建单时用了查询工具（工具选择错误）"
+  },
+  {
+    "case_id": "fail-wrong-arg-001",
+    "failure_type": "wrong_argument",
+    "agent_tool_name": "create_service_ticket",
+    "expected_tool_name": "create_service_ticket",
+    "agent_tool_args": {"customer_id": "CUST-9999", "problem": "ERR-203"},
+    "expected_tool_args": {"customer_id": "CUST-0001", "problem": "ERR-203"},
+    "note": "customer_id 填错（入参错误）"
+  },
+  {
+    "case_id": "fail-wrong-device-001",
+    "failure_type": "wrong_device",
+    "agent_tool_name": "get_device_status",
+    "expected_tool_name": "get_device_status",
+    "agent_document_ids": ["doc-B"],
+    "expected_document_ids": ["doc-A"],
+    "note": "检索命中了错误设备/文档（设备关联错误）"
+  },
+  {
+    "case_id": "fail-missing-evidence-001",
+    "failure_type": "missing_evidence",
+    "agent_tool_name": "search_knowledge_base",
+    "expected_tool_name": "search_knowledge_base",
+    "agent_diagnosis_status": "diagnosed",
+    "agent_diagnosis_result": "电源模块故障",
+    "agent_hypotheses": [{"text": "电源模块故障", "evidence_indices": [], "confidence": "low"}],
+    "expected_abstain": true,
+    "note": "无证据却下了诊断（应拒答，证据缺失）"
+  },
+  {
+    "case_id": "fail-hallucination-001",
+    "failure_type": "hallucination",
+    "agent_tool_name": "search_knowledge_base",
+    "expected_tool_name": "search_knowledge_base",
+    "agent_diagnosis_status": "diagnosed",
+    "agent_diagnosis_result": "电容爆裂导致短路",
+    "agent_evidence": [],
+    "agent_hypotheses": [{"text": "电容爆裂", "evidence_indices": [], "confidence": "high"}],
+    "note": "凭空调用工具编造了证据之外的故障（幻觉）"
+  },
+  {
+    "case_id": "fail-memory-contam-001",
+    "failure_type": "memory_contamination",
+    "agent_tool_name": "create_service_ticket",
+    "expected_tool_name": "create_service_ticket",
+    "agent_diagnosis_status": "diagnosed",
+    "agent_diagnosis_result": "沿用上一客户的历史结论",
+    "expected_abstain": true,
+    "note": "把客户 A 的记忆带进客户 B 的诊断（记忆污染，需外部上下文标注）"
+  },
+  {
+    "case_id": "fail-unsafe-write-001",
+    "failure_type": "unsafe_write",
+    "agent_tool_name": "update_service_ticket",
+    "expected_tool_name": "update_service_ticket",
+    "agent_tool_args": {"ticket_id": "TICK-0001", "status": "CLOSED"},
+    "expected_tool_args": {"ticket_id": "TICK-0001", "status": "IN_PROGRESS"},
+    "note": "未经审批直接做高危写操作（unsafe write，需审批上下文标注）"
+  },
+  {
+    "case_id": "fail-wrong-esc-001",
+    "failure_type": "wrong_escalation",
+    "agent_tool_name": "create_service_ticket",
+    "expected_tool_name": "create_service_ticket",
+    "agent_diagnosis_status": "insufficient_evidence",
+    "agent_need_human_review": false,
+    "expected_human_review": true,
+    "note": "该升级人工时没有升级（人工升级错误）"
+  },
+  {
+    "case_id": "fail-dup-ticket-001",
+    "failure_type": "duplicate_ticket",
+    "agent_tool_name": "create_service_ticket",
+    "expected_tool_name": "create_service_ticket",
+    "agent_tool_args": {"customer_id": "CUST-0001", "device_id": "DEV-X200-001", "problem": "ERR-203"},
+    "expected_tool_args": {"customer_id": "CUST-0001", "device_id": "DEV-X200-001", "problem": "ERR-203"},
+    "note": "同一客户+设备已有 OPEN 工单仍重复建单（需工单库上下文标注）"
+  }
+]
