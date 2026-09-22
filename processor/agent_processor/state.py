@@ -117,7 +117,7 @@ class TriageResult(BaseModel):
 
 class AgentState(TypedDict, total=False):
     """
-    LangGraph 状态（Step 7）。
+    LangGraph 状态（Step 9）。
 
     字段：
       - user_query:  原始用户输入
@@ -128,8 +128,14 @@ class AgentState(TypedDict, total=False):
       - thread_id:   会话线程 ID（短期记忆锚点）
       - customer_id: 数据隔离锚点（长期记忆 + 业务 Tool 作用域）
       - device_id:   设备 ID（长期记忆 + 业务 Tool 作用域）
+      - run_id:      本次运行 ID（trace / 审批关联，Step 10 起）
+      - tool_name:   本轮要执行的 Tool 名（Step 9 Policy 用）
+      - tool_args:   Tool 入参（Step 9 Policy 用）
+      - problem:     问题描述（Step 9 审批页展示用）
+      - approval:    审批记录 {approval_id, status, ...}（Step 9 产出）
+      - tool_result: 写操作执行结果 {executed, deduplicated, result, error}（Step 9 产出）
 
-    后续按需追加（ticket / approval / trace 等）。
+    后续按需追加（ticket / trace 等）。
     """
 
     user_query: str
@@ -140,3 +146,9 @@ class AgentState(TypedDict, total=False):
     thread_id: str
     customer_id: Optional[str]
     device_id: Optional[str]
+    run_id: str
+    tool_name: str
+    tool_args: dict
+    problem: str
+    approval: dict
+    tool_result: dict

@@ -146,8 +146,23 @@ class BusinessService:
         priority: str = "low",
         idempotency_key: Optional[str] = None,
     ) -> dict:
-        """创建工单。同一 idempotency_key 只创建一次（返回已存在的 ticket）。"""
-        # 1) 幂等检查
+        """
+        创建工单（HITL 幂等契约）：
+          1. 同 (customer_id, device_id) 已有 OPEN 工单 → 去重返回（防 resume/retry 重复建单）
+          2. 同 idempotency_key 已有缓存结果 → 去重返回
+          3. 否则创建新工单
+        """
+        # 1) 自然键去重：同客户 + 同设备的未关闭工单只保留一张
+        existing = self.store.find_tickets_by_customer_and_device(customer_id, device_id)
+        open_statuses = ("PENDING", "IN_PROGRESS", "WAITING_APPROVAL")
+        for t in existing:
+            if t.status in open_statuses:
+                logger.info(
+                    f"create_service_ticket 自然键去重: {customer_id}/{device_id} 已有 {t.ticket_id}"
+                )
+                return {"created": False, "deduplicated": True, "ticket": t.model_dump()}
+
+        # 2) 显式 idempotency_key 去重
         if idempotency_key:
             hit, cached = self.store.idempotent(idempotency_key, None)
             if hit:

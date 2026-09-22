@@ -27,6 +27,7 @@ from processor.agent_processor.state import TriageResult
 from tool.logger import logger
 from services.business.business_service import BusinessService, BusinessServiceError
 from services.business.ticket_workflow import TicketWorkflow, TicketWorkflowError
+from services.business.approval_service import ApprovalService, ApprovalError
 
 v2_router = APIRouter(prefix="/api/v2", tags=["v2-agent"])
 
@@ -219,4 +220,65 @@ async def transition_ticket(ticket_id: str, request: TransitionRequest):
             events=res["events"],
         )
     except TicketWorkflowError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ================= Step 9: Human-in-the-loop 审批 API =================
+
+_approval_service: Optional[ApprovalService] = None
+
+
+def _get_approval_service() -> ApprovalService:
+    """全局共享 ApprovalService（复用 TicketWorkflow 的 BusinessService 单例）。"""
+    global _approval_service
+    if _approval_service is None:
+        _approval_service = ApprovalService(_ticket_workflow()._svc)
+    return _approval_service
+
+
+class ApprovalDetailResponse(BaseModel):
+    found: bool
+    approval: dict
+    error: Optional[str] = None
+
+
+@v2_router.get("/approvals/{approval_id}", response_model=ApprovalDetailResponse)
+async def get_approval(approval_id: str):
+    """查审批记录（审批页展示：设备 / 客户 / 问题 / 诊断 / 证据 / Tool / 参数）。"""
+    res = _get_approval_service().get(approval_id)
+    if not res["found"]:
+        raise HTTPException(status_code=404, detail=f"approval not found: {approval_id}")
+    return ApprovalDetailResponse(found=True, approval=res["approval"])
+
+
+class DecideResponse(BaseModel):
+    approval_id: str
+    status: str
+    decided_by: str
+    decided_at: str
+
+
+@v2_router.post("/approvals/{approval_id}/approve", response_model=DecideResponse)
+async def approve(approval_id: str, decided_by: str = "human"):
+    """批准 → 状态转 approved（执行由 resume 时的 execute 幂等完成）。"""
+    try:
+        a = _get_approval_service().approve(approval_id, decided_by=decided_by)
+        return DecideResponse(
+            approval_id=approval_id, status=a["status"],
+            decided_by=a["decided_by"], decided_at=a["decided_at"],
+        )
+    except ApprovalError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@v2_router.post("/approvals/{approval_id}/reject", response_model=DecideResponse)
+async def reject(approval_id: str, decided_by: str = "human"):
+    """驳回 → 状态转 rejected（resume 后不执行写操作）。"""
+    try:
+        a = _get_approval_service().reject(approval_id, decided_by=decided_by)
+        return DecideResponse(
+            approval_id=approval_id, status=a["status"],
+            decided_by=a["decided_by"], decided_at=a["decided_at"],
+        )
+    except ApprovalError as e:
         raise HTTPException(status_code=400, detail=str(e))

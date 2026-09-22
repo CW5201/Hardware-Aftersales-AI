@@ -54,6 +54,16 @@ class InMemoryBusinessStore:
         if key:
             self._idempotency[key] = payload
 
+    def find_tickets_by_customer_and_device(
+        self, customer_id: str, device_id: Optional[str] = None
+    ) -> list:
+        """按 (customer_id, device_id) 找已存在的工单（用于幂等去重，HITL resume 后复用）。"""
+        out = []
+        for t in self.tickets:
+            if t.customer_id == customer_id and t.device_id == device_id:
+                out.append(t)
+        return out
+
 
 def seed_demo_data(store: InMemoryBusinessStore) -> None:
     """注入一份演示业务数据（本地模拟，非真实企业客户/数据）。"""
