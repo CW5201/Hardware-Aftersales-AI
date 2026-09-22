@@ -23,11 +23,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from processor.agent_processor.main_graph import AgentWorkflow
+from processor.agent_processor.traced_graph import TracedAgentWorkflow
 from processor.agent_processor.state import TriageResult
 from tool.logger import logger
 from services.business.business_service import BusinessService, BusinessServiceError
 from services.business.ticket_workflow import TicketWorkflow, TicketWorkflowError
 from services.business.approval_service import ApprovalService, ApprovalError
+from services.trace.trace_store import get_trace_store
+from services.trace.trace_store import get_trace_store
 
 v2_router = APIRouter(prefix="/api/v2", tags=["v2-agent"])
 
@@ -114,6 +117,39 @@ async def agent_run(request: AgentRunRequest):
             memory={},
             thread_id=request.thread_id or "default",
         )
+
+
+# ================= Step 10: Agent Trace API =================
+
+class ThreadTraceResponse(BaseModel):
+    thread_id: str
+    runs: list  # 每个 run 摘要 + 全量事件（按 seq 升序，可回放全链路）
+
+
+@v2_router.get("/threads/{thread_id}/trace", response_model=ThreadTraceResponse)
+async def get_thread_trace(thread_id: str):
+    """
+    查某 thread 的所有 run（含完整事件序列）。
+    事件可回放 Triage → Memory → Retrieval → Diagnosis → Tool → Approval → Ticket 全链路。
+    """
+    store = get_trace_store()
+    runs = [r.to_dict() for r in store.get_thread_runs(thread_id)]
+    return ThreadTraceResponse(thread_id=thread_id, runs=runs)
+
+
+class RunTraceResponse(BaseModel):
+    found: bool
+    run: dict
+
+
+@v2_router.get("/runs/{run_id}", response_model=RunTraceResponse)
+async def get_run_trace(run_id: str):
+    """查单次 run 的全量事件（trace 详情页用）。"""
+    store = get_trace_store()
+    run = store.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"run not found: {run_id}")
+    return RunTraceResponse(found=True, run=run.to_dict())
 
 
 # ================= Step 8: Ticket Workflow API =================
