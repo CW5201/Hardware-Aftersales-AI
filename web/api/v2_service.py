@@ -3,9 +3,14 @@ web/api/v2_service.py
 
 v2 Agent API（独立命名空间 /api/v2，与 v1 路由完全隔离）。
 
-Step 5：
+Step 8：
     POST /api/v2/agent/triage   （Step 2 保留不变）
-    POST /api/v2/agent/run      （Step 4 新增，Step 5 扩展：Triage → Retrieval → Diagnosis）
+    POST /api/v2/agent/run      （Step 4/5/7 扩展：完整 Agent Graph）
+    Ticket Workflow（Step 8 新增）：
+      POST /api/v2/tickets                          创建工单（WRITE，Step 9 起走 HITL）
+      GET  /api/v2/tickets?customer_id=&status=     工单列表
+      GET  /api/v2/tickets/{ticket_id}              工单详情 + 事件流
+      POST /api/v2/tickets/{ticket_id}/transition   状态迁移（校验合法）
 
 挂载方式（见 query_service.py）：
     from web.api.v2_service import v2_router
@@ -14,12 +19,14 @@ Step 5：
 
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from processor.agent_processor.main_graph import AgentWorkflow
 from processor.agent_processor.state import TriageResult
 from tool.logger import logger
+from services.business.business_service import BusinessService, BusinessServiceError
+from services.business.ticket_workflow import TicketWorkflow, TicketWorkflowError
 
 v2_router = APIRouter(prefix="/api/v2", tags=["v2-agent"])
 
@@ -106,3 +113,110 @@ async def agent_run(request: AgentRunRequest):
             memory={},
             thread_id=request.thread_id or "default",
         )
+
+
+# ================= Step 8: Ticket Workflow API =================
+
+def _ticket_workflow() -> TicketWorkflow:
+    """获取全局共享的 TicketWorkflow（单例，用默认 BusinessService 演示 seed）。"""
+    return TicketWorkflow()
+
+
+class CreateTicketRequest(BaseModel):
+    customer_id: str = Field(..., description="客户 ID")
+    device_id: str = Field(default="", description="设备 ID（可选）")
+    problem: str = Field(..., description="问题描述")
+    diagnosis: str = Field(default="", description="诊断结论（可选）")
+    evidence: list = Field(default_factory=list, description="证据摘要列表")
+    priority: str = Field(default="low", description="low / medium / high")
+    idempotency_key: str = Field(default="", description="幂等键（防 retry 重复建单）")
+
+
+class CreateTicketResponse(BaseModel):
+    created: bool
+    deduplicated: bool
+    ticket: dict
+
+
+@v2_router.post("/tickets", response_model=CreateTicketResponse)
+async def create_ticket(request: CreateTicketRequest):
+    """
+    创建服务工单（WRITE）。
+    Step 9 起，高风险写操作会被 Policy + HITL 拦截（需审批后 resume）。
+    本阶段（Step 8）直接执行，幂等键防重复。
+    """
+    svc = TicketWorkflow()._svc
+    try:
+        res = svc.create_service_ticket(
+            customer_id=request.customer_id,
+            device_id=request.device_id or None,
+            problem=request.problem,
+            diagnosis=request.diagnosis or None,
+            evidence=request.evidence,
+            priority=request.priority,
+            idempotency_key=request.idempotency_key or None,
+        )
+        return CreateTicketResponse(
+            created=res["created"],
+            deduplicated=res.get("deduplicated", False),
+            ticket=res["ticket"],
+        )
+    except BusinessServiceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@v2_router.get("/tickets")
+async def list_tickets(customer_id: str = "", status: str = ""):
+    """工单列表（按 customer / status 过滤）。"""
+    wf = _ticket_workflow()
+    try:
+        return wf.list_tickets(customer_id=customer_id or None, status=status or None)
+    except TicketWorkflowError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class TicketDetailResponse(BaseModel):
+    found: bool
+    ticket: dict
+    events: list
+
+
+@v2_router.get("/tickets/{ticket_id}", response_model=TicketDetailResponse)
+async def get_ticket(ticket_id: str):
+    """工单详情 + 事件流（ticket_events 回放）。"""
+    wf = _ticket_workflow()
+    res = wf.get_ticket(ticket_id)
+    if not res["found"]:
+        raise HTTPException(status_code=404, detail=f"ticket not found: {ticket_id}")
+    events = wf.get_events(ticket_id)["events"]
+    return TicketDetailResponse(found=True, ticket=res["ticket"], events=events)
+
+
+class TransitionRequest(BaseModel):
+    status: str = Field(..., description="目标状态：PENDING/IN_PROGRESS/WAITING_APPROVAL/COMPLETED/CLOSED")
+    reason: str = Field(default="", description="迁移原因（记入事件）")
+
+
+class TransitionResponse(BaseModel):
+    ticket_id: str
+    from_status: str
+    to_status: str
+    reason: str
+    events: list
+
+
+@v2_router.post("/tickets/{ticket_id}/transition", response_model=TransitionResponse)
+async def transition_ticket(ticket_id: str, request: TransitionRequest):
+    """工单状态迁移（校验合法迁移 + 写事件）。非法迁移 → 400。"""
+    wf = _ticket_workflow()
+    try:
+        res = wf.transition(ticket_id, request.status, reason=request.reason)
+        return TransitionResponse(
+            ticket_id=ticket_id,
+            from_status=res["from"],
+            to_status=res["to"],
+            reason=res["reason"],
+            events=res["events"],
+        )
+    except TicketWorkflowError as e:
+        raise HTTPException(status_code=400, detail=str(e))
